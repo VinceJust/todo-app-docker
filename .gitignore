@@ -1,0 +1,13 @@
+node_modules/
+*.log
+*.env
+*.tar
+*.zip
+*.gz
+
+.vscode/
+.idea/
+
+*.bak
+*.swp
+docker-compose.override.yml
