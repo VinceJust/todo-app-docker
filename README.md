@@ -4,20 +4,45 @@ Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Fr
 
 ---
 
-## 📁 Projektstruktur
+## Projektstruktur
 
+```bash
 react-app-HA/
-├── backend/ # Node.js Express API
-│ ├── Dockerfile
-│ ├── index.js
-│ └── package.json
-├── frontend/ # React App (Vite)
-│ ├── Dockerfile
-│ ├── src/
-│ └── package.json
+├── backend/                 # Node.js Express API
+│   ├── .dockerignore
+│   ├── .gitignore
+│   ├── Dockerfile
+│   ├── index.js
+│   ├── package-lock.json
+│   └── package.json
+│
+├── frontend/                # React App (Vite)
+│   ├── .dockerignore
+│   ├── .gitignore
+│   ├── Dockerfile
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── README.md
+│   ├── vite.config.js
+│   ├── public/
+│   ├── dist/
+│   ├── node_modules/
+│   └── src/
+│       ├── App.css
+│       ├── App.jsx
+│       ├── index.css
+│       ├── main.jsx
+│       ├── assets/
+│       └── components/
+│           ├── TodoFilter.jsx
+│           ├── TodoForm.jsx
+│           └── TodoList.jsx
+│
 ├── .gitignore
-├── .dockerignore
 └── README.md
+```
 
 
 ---
