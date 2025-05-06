@@ -10,6 +10,7 @@ Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Fr
 react-app-HA/
 ├── backend/                 # Node.js Express API
 │   ├── .dockerignore
+│   ├── data/
 │   ├── .gitignore
 │   ├── Dockerfile
 │   ├── index.js
@@ -50,11 +51,11 @@ react-app-HA/
 ## Features
 
 - React-Frontend mit Vite
-- Express-API mit CRUD-Funktionalität für To-dos
-- Daten werden im Arbeitsspeicher gehalten
-- Frontend kommuniziert über `fetch` mit der API
-- Containerisiert mit Docker (zwei separate Container)
-- Konfigurierbar über Umgebungsvariablen und Build-Argumente
+- Express-API mit vollständiger CRUD-Funktionalität
+- Frontend kommuniziert via fetch mit dem Backend
+- Datenpersistenz via JSON-Datei (/app/data/todos.json)
+- Daten überstehen Container-Neustarts durch Docker Named Volume
+- Dockerisierte Multi-Container-Architektur
 - HEALTHCHECK im Nginx-Container
 
 ---
@@ -68,12 +69,15 @@ react-app-HA/
 
 ## Anwendung bauen & starten
 
-### 1. Backend bauen & starten
+### 1. Backend mit Persistenz starten
 
 ```bash
 cd backend
-docker build -t my-backend-api .
-docker run -d -p 8081:3000 --name my-backend my-backend-api
+docker build -t my-backend-api:persistence .
+docker volume create my-backend-data
+docker run -d -p 8081:3000 --name my-backend-persistent \
+  -v my-backend-data:/app/data \
+  my-backend-api:persistence
 ```
 
 Die API ist nun erreichbar unter:
@@ -89,3 +93,27 @@ docker run -d -p 8080:80 --name my-frontend my-frontend-app
 
 Die React-App ist nun im Browser aufrufbar unter:
 http://localhost:8080
+
+---
+
+### Volume-Typ: Entscheidung und Begründung
+Für diese Aufgabe wurde ein Named Volume (my-backend-data) verwendet.
+
+Vorteile:
+
+- Daten bleiben erhalten, auch wenn der Container gelöscht wird
+- Docker verwaltet Speicherort automatisch (sicher & robust)
+- Ideal für Produktion oder strukturierte Entwicklungsumgebungen
+
+Nachteil gegenüber Bind Mounts:
+
+- Weniger Transparenz bei der Dateiansicht auf dem Hostsystem
+- Für Debugging oder manuelles Editieren nicht so flexibel
+- Für diese Anwendung war Stabilität und Trennung von Code & Daten wichtig, daher fiel die Entscheidung bewusst auf Named Volumes.
+
+
+### Datenpersistenz testen
+- Todo hinzufügen
+- Container stoppen (docker stop my-backend-persistent)
+- Container starten (docker start my-backend-persistent)
+- Seite aktualisieren → Todos sind weiter vorhanden
