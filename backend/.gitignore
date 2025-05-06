@@ -32,3 +32,6 @@ docker-compose.override.yml
 *.tar
 *.gz
 *.zip
+
+
+data/
