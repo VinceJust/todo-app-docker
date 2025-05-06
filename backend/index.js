@@ -1,15 +1,44 @@
-const express = require('express')
-const cors = require('cors')
-const app = express()
-const PORT = process.env.PORT || 3000
+const express = require('express');
+const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
-app.use(cors())
-app.use(express.json())
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-let todos = [
-  { id: 1, text: 'Erste Aufgabe', done: false },
-  { id: 2, text: 'Zweite Aufgabe', done: true }
-];
+// Datenpfad im Container
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'todos.json');
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Lade bestehende Daten oder starte mit leerer Liste
+let todos = [];
+if (fs.existsSync(DATA_FILE)) {
+  try {
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    todos = JSON.parse(raw);
+  } catch (err) {
+    console.error('Fehler beim Laden der todos.json:', err.message);
+    todos = [];
+  }
+} else {
+  console.log('todos.json nicht gefunden – starte mit leerer Liste.');
+}
+
+// Speichern in Datei
+function saveTodos() {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(todos, null, 2));
+  } catch (err) {
+    console.error('Fehler beim Schreiben der todos.json:', err.message);
+  }
+}
+
+app.use(cors());
+app.use(express.json());
 
 // GET alle Todos
 app.get('/api/todos', (req, res) => {
@@ -30,6 +59,7 @@ app.post('/api/todos', (req, res) => {
     done: false
   };
   todos.push(newTodo);
+  saveTodos();
   res.status(201).json(newTodo);
 });
 
@@ -39,13 +69,14 @@ app.delete('/api/todos/:id', (req, res) => {
   const index = todos.findIndex(t => t.id === id);
   if (index > -1) {
     todos.splice(index, 1);
+    saveTodos();
     res.status(204).end();
   } else {
     res.status(404).send('Nicht gefunden');
   }
 });
 
-// Fallback für nicht definierte Routen
+// Fallback
 app.use((req, res) => {
   res.status(404).send('Route nicht gefunden');
 });
