@@ -42,45 +42,45 @@ app.use(express.json());
 
 // GET alle Todos
 app.get('/api/todos', (req, res) => {
-  res.json(todos);
-});
-
-// GET Todo nach ID
-app.get('/api/todos/:id', (req, res) => {
-  const todo = todos.find(t => t.id === parseInt(req.params.id));
-  todo ? res.json(todo) : res.status(404).send('Nicht gefunden');
-});
-
-// POST neues Todo
-app.post('/api/todos', (req, res) => {
-  const newTodo = {
-    id: Date.now(),
-    text: req.body.text,
-    done: false
-  };
-  todos.push(newTodo);
-  saveTodos();
-  res.status(201).json(newTodo);
-});
-
-// DELETE Todo
-app.delete('/api/todos/:id', (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = todos.findIndex(t => t.id === id);
-  if (index > -1) {
-    todos.splice(index, 1);
+    res.json(todos);
+  });
+  
+  // GET Todo nach ID
+  app.get('/api/todos/:id', (req, res) => {
+    const todo = todos.find(t => t.id === parseInt(req.params.id));
+    todo ? res.json(todo) : res.status(404).send('Nicht gefunden');
+  });
+  
+  // POST neues Todo
+  app.post('/api/todos', (req, res) => {
+    const newTodo = {
+      id: Date.now(),
+      text: req.body.text,
+      completed: false
+    };
+    todos.push(newTodo);
     saveTodos();
-    res.status(204).end();
-  } else {
-    res.status(404).send('Nicht gefunden');
-  }
-});
-
+    res.status(201).json(newTodo);
+  });
+  
+  // DELETE Todo
+  app.delete('/api/todos/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const index = todos.findIndex(t => t.id === id);
+    if (index > -1) {
+      todos.splice(index, 1);
+      saveTodos();
+      res.status(204).end();
+    } else {
+      res.status(404).send('Nicht gefunden');
+    }
+  });
+  
 // Fallback
 app.use((req, res) => {
   res.status(404).send('Route nicht gefunden');
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`API läuft auf Port ${PORT}`);
 });

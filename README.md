@@ -27,6 +27,8 @@ react-app-HA/
 │   ├── package.json
 │   ├── README.md
 │   ├── vite.config.js
+│   ├── nginx.conf           # Reverse Proxy Konfiguration für Nginx
+│   ├── .env.production
 │   ├── public/
 │   ├── dist/
 │   ├── node_modules/
@@ -57,6 +59,8 @@ react-app-HA/
 - Daten überstehen Container-Neustarts durch Docker Named Volume
 - Dockerisierte Multi-Container-Architektur
 - HEALTHCHECK im Nginx-Container
+- Reverse Proxy mit Nginx für API-Aufrufe über /api
+- Docker Bridge Netzwerk (my-app-network) für interne Kommunikation
 
 ---
 
@@ -69,26 +73,39 @@ react-app-HA/
 
 ## Anwendung bauen & starten
 
-### 1. Backend mit Persistenz starten
+## Docker Netzwerk erstellen
+
+```bash
+docker network create my-app-network
+```
+
+### Backend mit Persistenz starten (Reverse Proxy Setup)
 
 ```bash
 cd backend
-docker build -t my-backend-api:persistence .
+docker build -t my-backend-api:network-proxy .
 docker volume create my-backend-data
-docker run -d -p 8081:3000 --name my-backend-persistent \
+
+docker run -d --name backend-service \
+  --network my-app-network \
+  -p 8081:3000 \
   -v my-backend-data:/app/data \
-  my-backend-api:persistence
+  my-backend-api:network-proxy
 ```
 
 Die API ist nun erreichbar unter:
 http://localhost:8081/api/todos
 
-### 2. Frontend bauen & starten
+### Frontend bauen & starten (mit Nginx Reverse Proxy)
 
 ```bash
 cd frontend
-docker build --build-arg VITE_API_URL=http://localhost:8081 -t my-frontend-app .
-docker run -d -p 8080:80 --name my-frontend my-frontend-app
+docker build --build-arg VITE_API_URL=/api -t my-frontend-app:network-proxy .
+
+docker run -d --name frontend-app \
+  --network my-app-network \
+  -p 8080:80 \
+  my-frontend-app:network-proxy
 ```
 
 Die React-App ist nun im Browser aufrufbar unter:

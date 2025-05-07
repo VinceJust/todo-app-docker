@@ -5,6 +5,10 @@ import TodoForm from './components/TodoForm'
 import TodoFilter from './components/TodoFilter'
 
 const API_URL = import.meta.env.VITE_API_URL
+console.log('🔍 API_URL:', API_URL)
+console.log('🌐 import.meta.env:', import.meta.env)
+console.log('API_URL zur Laufzeit:', API_URL);
+
 
 function App() {
   const [todos, setTodos] = useState([])
@@ -12,7 +16,7 @@ function App() {
 
   // Todos vom Backend laden
   useEffect(() => {
-    fetch(`${API_URL}/api/todos`)
+    fetch(`${API_URL}/todos`)
       .then(res => res.json())
       .then(data => setTodos(data))
       .catch(err => console.error('Fehler beim Laden der Todos:', err))
@@ -22,7 +26,7 @@ function App() {
   const addTodo = (text) => {
     if (text.trim() === '') return
 
-    fetch(`${API_URL}/api/todos`, {
+    fetch(`${API_URL}/todos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })
@@ -32,7 +36,7 @@ function App() {
       .catch(err => console.error('Fehler beim Hinzufügen:', err))
   }
 
-  // Todo lokal toggeln (könnte später mit PUT/PATCH ergänzt werden)
+  // Todo lokal toggeln
   const toggleTodo = (id) => {
     setTodos(
       todos.map(todo =>
@@ -43,7 +47,7 @@ function App() {
 
   // Todo im Backend löschen
   const deleteTodo = (id) => {
-    fetch(`${API_URL}/api/todos/${id}`, {
+    fetch(`${API_URL}/todos/${id}`, {
       method: 'DELETE'
     })
       .then(() => setTodos(prev => prev.filter(t => t.id !== id)))
