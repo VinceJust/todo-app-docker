@@ -4,6 +4,12 @@ Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Fr
 
 ---
 
+### SQL Recap
+
+Theoretisches Datenbankschema inkl. CRUD und Reflexion siehe: [sql-recap.md](/sql-recap.md)
+
+---
+
 ## Projektstruktur
 
 ```bash
@@ -44,7 +50,8 @@ react-app-HA/
 │           └── TodoList.jsx
 │
 ├── .gitignore
-└── README.md
+├── README.md
+└── sql-recap.md
 ```
 
 
