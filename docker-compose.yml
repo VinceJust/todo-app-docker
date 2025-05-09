@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: tododb
+      POSTGRES_USER: todo_user
+      POSTGRES_PASSWORD: supersecure
+    expose:
+      - "5432"
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      - database
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: tododb
+      DB_USER: todo_user
+      DB_PASSWORD: supersecure
+    expose:
+      - "3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
