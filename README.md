@@ -1,20 +1,12 @@
-# Full-Stack Todo App (React + Node.js + Docker)
+# Full-Stack Todo App (React + Node.js + Docker Compose)
 
-Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend und einer Express-basierten Node.js-API. Die Anwendung ermöglicht das Erstellen, Anzeigen und Löschen von To-do-Einträgen über eine REST-Schnittstelle.
-
----
-
-### SQL Recap
-
-Theoretisches Datenbankschema inkl. CRUD und Reflexion siehe: [sql-recap.md](/sql-recap.md)
-
----
+Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend, einer Express-basierten Node.js-API und einer PostgreSQL-Datenbank. Die Anwendung ermöglicht das Erstellen, Anzeigen und Löschen von To-do-Einträgen über eine REST-Schnittstelle. Die gesamte App wird über Docker Compose orchestriert.
 
 ## Projektstruktur
 
-```bash
+```
 react-app-HA/
-├── backend/                 # Node.js Express API
+├── backend/                # Node.js Express API
 │   ├── .dockerignore
 │   ├── data/
 │   ├── .gitignore
@@ -23,121 +15,85 @@ react-app-HA/
 │   ├── package-lock.json
 │   └── package.json
 │
-├── frontend/                # React App (Vite)
+├── frontend/              # React App (Vite + Nginx)
 │   ├── .dockerignore
 │   ├── .gitignore
 │   ├── Dockerfile
-│   ├── eslint.config.js
+│   ├── nginx.conf
 │   ├── index.html
 │   ├── package-lock.json
 │   ├── package.json
-│   ├── README.md
 │   ├── vite.config.js
-│   ├── nginx.conf           # Reverse Proxy Konfiguration für Nginx
-│   ├── .env.production
 │   ├── public/
-│   ├── dist/
-│   ├── node_modules/
 │   └── src/
-│       ├── App.css
-│       ├── App.jsx
-│       ├── index.css
-│       ├── main.jsx
-│       ├── assets/
 │       └── components/
 │           ├── TodoFilter.jsx
 │           ├── TodoForm.jsx
 │           └── TodoList.jsx
 │
+├── docker-compose.yml     # Orchestriert alle drei Services
 ├── .gitignore
 ├── README.md
 └── sql-recap.md
 ```
 
-
----
-
 ## Features
 
-- React-Frontend mit Vite
-- Express-API mit vollständiger CRUD-Funktionalität
-- Frontend kommuniziert via fetch mit dem Backend
-- Datenpersistenz via JSON-Datei (/app/data/todos.json)
-- Daten überstehen Container-Neustarts durch Docker Named Volume
-- Dockerisierte Multi-Container-Architektur
-- HEALTHCHECK im Nginx-Container
-- Reverse Proxy mit Nginx für API-Aufrufe über /api
-- Docker Bridge Netzwerk (my-app-network) für interne Kommunikation
-
----
+* React-Frontend mit Vite
+* Express-API mit vollständiger CRUD-Funktionalität
+* PostgreSQL-Datenbank zur Datenpersistenz
+* ENV-Logging mit Winston (ohne Klartextpasswort)
+* Reverse Proxy mit Nginx für API-Aufrufe über `/api`
+* HEALTHCHECK im Frontend-Container
+* Vollständige Orchestrierung mit Docker Compose
+* Persistente Volumes für Datenbank und Backend-Daten
 
 ## Voraussetzungen
 
-- [Docker](https://www.docker.com/)
-- [Node.js](https://nodejs.org/) (optional, für lokale Tests)
+* Docker
+* Node.js (optional für lokale Tests)
+* psql (optional für DB-Tests)
 
----
-
-## Anwendung bauen & starten
-
-## Docker Netzwerk erstellen
+## Anwendung starten mit Docker Compose
 
 ```bash
-docker network create my-app-network
+docker-compose up --build -d
 ```
 
-### Backend mit Persistenz starten (Reverse Proxy Setup)
+Aufrufen im Browser: http://localhost:8080
+
+## Datenbank
+
+Die PostgreSQL-Datenbank wird beim ersten Start mit folgenden Werten initialisiert:
+
+* DB-Name: `tododb`
+* User: `todo_user`
+* Passwort: `supersecure`
+
+Diese Werte werden als Umgebungsvariablen in `docker-compose.yml` definiert und an das Backend weitergegeben. Das Backend loggt diese mit Winston beim Start (Passwort wird nicht im Klartext geloggt).
+
+## Logging mit Winston
+
+Das Backend verwendet Winston, um strukturierte Logs auszugeben. Beim Start werden u.a. folgende Infos geloggt:
+
+```json
+info: Starting backend API...
+info: Database Configuration (from ENV): {
+  "DB_HOST": "database",
+  "DB_PORT": "5432",
+  "DB_USER": "todo_user",
+  "DB_NAME": "tododb",
+  "DB_PASSWORD": "[REDACTED]"
+}
+```
+
+## Datenpersistenz testen
 
 ```bash
-cd backend
-docker build -t my-backend-api:network-proxy .
-docker volume create my-backend-data
+# Stoppen & Starten
+docker-compose stop
+docker-compose start
 
-docker run -d --name backend-service \
-  --network my-app-network \
-  -p 8081:3000 \
-  -v my-backend-data:/app/data \
-  my-backend-api:network-proxy
+# Optional: PostgreSQL testen
+docker-compose exec database psql -U todo_user -d tododb
 ```
-
-Die API ist nun erreichbar unter:
-http://localhost:8081/api/todos
-
-### Frontend bauen & starten (mit Nginx Reverse Proxy)
-
-```bash
-cd frontend
-docker build --build-arg VITE_API_URL=/api -t my-frontend-app:network-proxy .
-
-docker run -d --name frontend-app \
-  --network my-app-network \
-  -p 8080:80 \
-  my-frontend-app:network-proxy
-```
-
-Die React-App ist nun im Browser aufrufbar unter:
-http://localhost:8080
-
----
-
-### Volume-Typ: Entscheidung und Begründung
-Für diese Aufgabe wurde ein Named Volume (my-backend-data) verwendet.
-
-Vorteile:
-
-- Daten bleiben erhalten, auch wenn der Container gelöscht wird
-- Docker verwaltet Speicherort automatisch (sicher & robust)
-- Ideal für Produktion oder strukturierte Entwicklungsumgebungen
-
-Nachteil gegenüber Bind Mounts:
-
-- Weniger Transparenz bei der Dateiansicht auf dem Hostsystem
-- Für Debugging oder manuelles Editieren nicht so flexibel
-- Für diese Anwendung war Stabilität und Trennung von Code & Daten wichtig, daher fiel die Entscheidung bewusst auf Named Volumes.
-
-
-### Datenpersistenz testen
-- Todo hinzufügen
-- Container stoppen (docker stop my-backend-persistent)
-- Container starten (docker start my-backend-persistent)
-- Seite aktualisieren → Todos sind weiter vorhanden
