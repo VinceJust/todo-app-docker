@@ -1,80 +1,90 @@
 # Full-Stack Todo App (React + Node.js + Docker Compose)
 
-Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend, einer Express-basierten Node.js-API und einer PostgreSQL-Datenbank. Die Anwendung ermöglicht das Erstellen, Anzeigen und Löschen von To-do-Einträgen über eine REST-Schnittstelle. Die gesamte App wird über Docker Compose orchestriert.
+Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend, einer Express-basierten Node.js-API und einer PostgreSQL-Datenbank. Die Anwendung erlaubt das Erstellen, Anzeigen und Löschen von To-do-Einträgen über eine REST-Schnittstelle. Die gesamte App wird über Docker Compose orchestriert.
 
 ## Projektstruktur
 
 ```
 react-app-HA/
 ├── backend/                # Node.js Express API
-│   ├── .dockerignore
-│   ├── data/
-│   ├── .gitignore
+│   ├── src/               # Service, DB-Modul, Routing
+│   ├── sql/               # initial_schema.sql
 │   ├── Dockerfile
-│   ├── index.js
-│   ├── package-lock.json
 │   └── package.json
-│
-├── frontend/              # React App (Vite + Nginx)
-│   ├── .dockerignore
-│   ├── .gitignore
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── index.html
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── public/
-│   └── src/
-│       └── components/
-│           ├── TodoFilter.jsx
-│           ├── TodoForm.jsx
-│           └── TodoList.jsx
-│
+├── frontend/               # React App (Vite + Nginx)
+│   └── Dockerfile
 ├── docker-compose.yml     # Orchestriert alle drei Services
-├── .gitignore
-├── README.md
-└── sql-recap.md
+└── README.md
 ```
 
 ## Features
 
 * React-Frontend mit Vite
-* Express-API mit vollständiger CRUD-Funktionalität
-* PostgreSQL-Datenbank zur Datenpersistenz
-* ENV-Logging mit Winston (ohne Klartextpasswort)
-* Reverse Proxy mit Nginx für API-Aufrufe über `/api`
-* HEALTHCHECK im Frontend-Container
-* Vollständige Orchestrierung mit Docker Compose
-* Persistente Volumes für Datenbank und Backend-Daten
+* Express-API mit PostgreSQL-Datenbankanbindung
+* Manuelles Datenbank-Schema via SQL-Datei
+* Persistente Volumes für die Datenbank
+* ENV-basierte DB-Konfiguration
+* Parametrisierte SQL-Abfragen (SQL Injection Schutz)
+* Modularer Service Layer im Backend
+* Fehlerbehandlung und Logging via Winston
+* Reverse Proxy via Nginx
 
 ## Voraussetzungen
 
-* Docker
-* Node.js (optional für lokale Tests)
-* psql (optional für DB-Tests)
+* Docker (empfohlen: Docker Desktop)
+* Optional: `psql` CLI-Tool zur manuellen DB-Prüfung
 
-## Anwendung starten mit Docker Compose
+## Anwendung starten
 
 ```bash
 docker-compose up --build -d
 ```
 
-Aufrufen im Browser: http://localhost:8080
+Frontend erreichbar unter: [http://localhost:8080](http://localhost:8080)
 
-## Datenbank
+## Manuelles Schema-Management
 
-Die PostgreSQL-Datenbank wird beim ersten Start mit folgenden Werten initialisiert:
+Die Datei `backend/sql/initial_schema.sql` definiert die `todos`-Tabelle und wird beim ersten Start durch den Einhängepunkt `/docker-entrypoint-initdb.d` ausgeführt.
 
-* DB-Name: `tododb`
-* User: `todo_user`
-* Passwort: `supersecure`
+Beispiel:
 
-Diese Werte werden als Umgebungsvariablen in `docker-compose.yml` definiert und an das Backend weitergegeben. Das Backend loggt diese mit Winston beim Start (Passwort wird nicht im Klartext geloggt).
+```sql
+CREATE TABLE IF NOT EXISTS todos (
+  id SERIAL PRIMARY KEY,
+  text VARCHAR(255) NOT NULL,
+  completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-## Logging mit Winston
+## Persistenz testen (ohne Datenverlust)
 
-Das Backend verwendet Winston, um strukturierte Logs auszugeben. Beim Start werden u.a. folgende Infos geloggt:
+```bash
+docker-compose stop
+docker-compose start
+```
+
+Danach erneut im Browser laden oder in die Datenbank schauen:
+
+```bash
+docker exec -it react-app-ha-database-1 bash
+psql -U todo_user -d tododb
+SELECT * FROM todos;
+```
+
+## Sicherheitsmaßnahmen
+
+* Alle SQL-Queries verwenden Platzhalter mit Werten:
+
+  ```js
+  pool.query('SELECT * FROM todos WHERE id = $1', [id]);
+  ```
+* Keine String-Konkatenation bei Abfragen
+* ENV-Logging ohne Klartextpasswort
+
+## Logging
+
+Backend loggt u.a.:
 
 ```json
 info: Starting backend API...
@@ -85,15 +95,4 @@ info: Database Configuration (from ENV): {
   "DB_NAME": "tododb",
   "DB_PASSWORD": "[REDACTED]"
 }
-```
-
-## Datenpersistenz testen
-
-```bash
-# Stoppen & Starten
-docker-compose stop
-docker-compose start
-
-# Optional: PostgreSQL testen
-docker-compose exec database psql -U todo_user -d tododb
 ```
