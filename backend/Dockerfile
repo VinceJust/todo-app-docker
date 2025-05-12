@@ -4,16 +4,16 @@ FROM node:lts-alpine
 # Arbeitsverzeichnis im Container
 WORKDIR /app
 
-# package.json und lockfile kopieren
+# package.json UND package-lock.json kopieren
 COPY package*.json ./
 
-# Nur Produktionsabhängigkeiten installieren
-RUN npm install --production
+# Deterministische Installation (setzt Lockfile voraus)
+RUN npm ci --omit=dev
 
 # Restlichen Code kopieren
 COPY . .
 
-# Port setzen
+# Port freigeben
 EXPOSE 3000
 
 # Startkommando
