@@ -1,6 +1,9 @@
 # Basis-Image
 FROM node:lts-alpine
 
+RUN apk add --no-cache curl
+
+
 # Arbeitsverzeichnis im Container
 WORKDIR /app
 

@@ -30,6 +30,11 @@ logger.info("Database Configuration (from ENV):", {
 app.use(cors());
 app.use(express.json());
 
+// Healthcheck-Endpunkt für Docker
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
 // GET all Todos
 app.get("/api/todos", async (req, res, next) => {
   try {
