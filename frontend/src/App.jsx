@@ -12,13 +12,20 @@ console.log("API_URL zur Laufzeit:", API_URL);
 function App() {
   const [todos, setTodos] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Todos vom Backend laden
   useEffect(() => {
     fetch(`${API_URL}/todos`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Fehler beim Laden der Todos");
+        return res.json();
+      })
       .then((data) => setTodos(data))
-      .catch((err) => console.error("Fehler beim Laden der Todos:", err));
+      .catch((err) => {
+        console.error(err);
+        setErrorMessage("⚠️ Aufgaben konnten nicht geladen werden. Bitte später erneut versuchen.");
+      });
   }, []);
 
   // Neues Todo ans Backend senden
@@ -30,12 +37,18 @@ function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Fehler beim Hinzufügen");
+        return res.json();
+      })
       .then((newTodo) => setTodos((prev) => [...prev, newTodo]))
-      .catch((err) => console.error("Fehler beim Hinzufügen:", err));
+      .catch((err) => {
+        console.error(err);
+        setErrorMessage("⚠️ Aufgabe konnte nicht hinzugefügt werden.");
+      });
   };
 
-  // Todo lokal toggeln
+  // Todo aktualisieren
   const toggleTodo = async (id) => {
     const todo = todos.find((t) => t.id === id);
     if (!todo) return;
@@ -47,12 +60,13 @@ function App() {
         body: JSON.stringify({ completed: !todo.completed }),
       });
 
-      const updated = await res.json();
+      if (!res.ok) throw new Error("Fehler beim Aktualisieren");
 
-      // Lokalen State aktualisieren
+      const updated = await res.json();
       setTodos((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     } catch (err) {
-      console.error("Fehler beim Aktualisieren:", err);
+      console.error(err);
+      setErrorMessage("⚠️ Aufgabe konnte nicht aktualisiert werden.");
     }
   };
 
@@ -61,8 +75,14 @@ function App() {
     fetch(`${API_URL}/todos/${id}`, {
       method: "DELETE",
     })
-      .then(() => setTodos((prev) => prev.filter((t) => t.id !== id)))
-      .catch((err) => console.error("Fehler beim Löschen:", err));
+      .then((res) => {
+        if (!res.ok) throw new Error("Fehler beim Löschen");
+        setTodos((prev) => prev.filter((t) => t.id !== id));
+      })
+      .catch((err) => {
+        console.error(err);
+        setErrorMessage("⚠️ Aufgabe konnte nicht gelöscht werden.");
+      });
   };
 
   const filteredTodos = todos.filter((todo) => {
@@ -74,6 +94,7 @@ function App() {
   return (
     <div className="todo-app">
       <h1>To-Do Liste</h1>
+      {errorMessage && <p className="error-message">{errorMessage}</p>}
       <TodoForm onAddTodo={addTodo} />
       <TodoFilter filter={filter} onFilterChange={setFilter} />
       <TodoList
