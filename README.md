@@ -84,8 +84,13 @@ Healthcheck-Endpunkt: `http://localhost:3000/health`
 Ergänzt im Code:
 
 ```js
-app.get("/health", (req, res) => {
-  res.status(200).send("OK");
+app.get("/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    res.status(503).send("DB nicht erreichbar");
+  }
 });
 ```
 
@@ -93,7 +98,7 @@ Healthcheck-Konfiguration in `docker-compose.yml`:
 
 ```yaml
 healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+  test: ["CMD-SHELL", "curl -sf http://localhost:3000/health || exit 1"]
   interval: 5s
   timeout: 3s
   retries: 3
@@ -159,4 +164,11 @@ react-app-ha-frontend-1   react-app-ha-frontend   Up (healthy)
 
 ## CRUD-Benutzung im Browser
 
-Alle vier CRUD-Operationen können über die UI im Browser durchgeführt werden. Neue Todos lassen sich erstellen, löschen und als erledigt markieren. Die Daten werden in der PostgreSQL-Datenbank persistent gespeichert.
+Alle vier CRUD-Operationen können über die UI im Browser durchgeführt werden. Neue Todos lassen sich erstellen, löschen, bearbeiten und als erledigt markieren. Die Daten werden in der PostgreSQL-Datenbank persistent gespeichert.
+
+## Fehlerhandling & Stabilität
+
+* Das Backend gibt bei ungültiger ID `400 Bad Request` zurück.
+* Der Healthcheck meldet bei gestoppter Datenbank `503 Service Unavailable`.
+* Das Frontend zeigt im Fehlerfall (z. B. keine Verbindung) eine benutzerfreundliche Fehlermeldung.
+* Die Anwendung bleibt auch bei einem DB-Ausfall stabil und startet automatisch neu, sobald die DB wieder verfügbar ist.
