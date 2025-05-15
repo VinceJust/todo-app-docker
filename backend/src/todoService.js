@@ -1,5 +1,3 @@
-// backend/src/todoService.js
-
 import pool from "./db.js"; // Note the .js extension
 import winston from "winston";
 
@@ -24,10 +22,25 @@ async function createTodo(text) {
   return result.rows[0];
 }
 
+// Todo aktualisieren (z.B. completed toggeln)
+async function updateTodo(id, completed) {
+  const result = await pool.query(
+    "UPDATE todos SET completed = $1 WHERE id = $2 RETURNING *",
+    [completed, id]
+  );
+  return result.rows[0];
+}
+
 // Todo löschen
 async function deleteTodo(id) {
   const result = await pool.query("DELETE FROM todos WHERE id = $1", [id]);
   return result.rowCount > 0;
 }
 
-export { getAllTodos, getTodoById, createTodo, deleteTodo };
+export {
+  getAllTodos,
+  getTodoById,
+  createTodo,
+  updateTodo,
+  deleteTodo
+};

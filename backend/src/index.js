@@ -1,7 +1,13 @@
 import express from "express";
 import cors from "cors";
 import winston from "winston";
-import { getAllTodos, getTodoById, createTodo, deleteTodo } from "./todoService.js";
+import {
+  getAllTodos,
+  getTodoById,
+  createTodo,
+  updateTodo,
+  deleteTodo
+} from "./todoService.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +66,16 @@ app.post("/api/todos", async (req, res, next) => {
   try {
     const newTodo = await createTodo(req.body.text);
     res.status(201).json(newTodo);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT update Todo
+app.put("/api/todos/:id", async (req, res, next) => {
+  try {
+    const updated = await updateTodo(parseInt(req.params.id), req.body.completed);
+    updated ? res.json(updated) : res.status(404).send("Nicht gefunden");
   } catch (err) {
     next(err);
   }
