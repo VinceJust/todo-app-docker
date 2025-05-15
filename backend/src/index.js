@@ -73,26 +73,38 @@ app.get("/api/todos/:id", async (req, res, next) => {
 
 // POST new Todo
 app.post("/api/todos", async (req, res, next) => {
+  const { text } = req.body;
+  if (!text || typeof text !== "string" || text.trim() === "") {
+    return res.status(400).json({ error: "Ungültiger oder fehlender Text" });
+  }
+
   try {
-    const newTodo = await createTodo(req.body.text);
+    const newTodo = await createTodo(text.trim());
     res.status(201).json(newTodo);
   } catch (err) {
     next(err);
   }
 });
 
+
 // PUT update Todo
 app.put("/api/todos/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
+  const { completed } = req.body;
+
   if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
+  if (typeof completed !== "boolean") {
+    return res.status(400).json({ error: 'Feld "completed" muss ein Boolean sein' });
+  }
 
   try {
-    const updated = await updateTodo(id, req.body.completed);
+    const updated = await updateTodo(id, completed);
     updated ? res.json(updated) : res.status(404).send("Nicht gefunden");
   } catch (err) {
     next(err);
   }
 });
+
 
 // DELETE Todo
 app.delete("/api/todos/:id", async (req, res, next) => {
