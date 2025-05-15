@@ -32,10 +32,11 @@ services:
     expose:
       - "3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/health || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 3
+
 
   frontend:
     build:
