@@ -8,6 +8,7 @@ import {
   updateTodo,
   deleteTodo
 } from "./todoService.js";
+import pool from "./db.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,9 +37,15 @@ logger.info("Database Configuration (from ENV):", {
 app.use(cors());
 app.use(express.json());
 
-// Healthcheck-Endpunkt für Docker
-app.get("/health", (req, res) => {
-  res.status(200).send("OK");
+// Healthcheck-Endpunkt mit DB-Test
+app.get("/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("OK");
+  } catch (err) {
+    logger.error("Healthcheck-Fehler: DB nicht erreichbar");
+    res.status(503).send("DB nicht erreichbar");
+  }
 });
 
 // GET all Todos
@@ -53,8 +60,11 @@ app.get("/api/todos", async (req, res, next) => {
 
 // GET Todo by ID
 app.get("/api/todos/:id", async (req, res, next) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
+
   try {
-    const todo = await getTodoById(parseInt(req.params.id));
+    const todo = await getTodoById(id);
     todo ? res.json(todo) : res.status(404).send("Nicht gefunden");
   } catch (err) {
     next(err);
@@ -73,8 +83,11 @@ app.post("/api/todos", async (req, res, next) => {
 
 // PUT update Todo
 app.put("/api/todos/:id", async (req, res, next) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
+
   try {
-    const updated = await updateTodo(parseInt(req.params.id), req.body.completed);
+    const updated = await updateTodo(id, req.body.completed);
     updated ? res.json(updated) : res.status(404).send("Nicht gefunden");
   } catch (err) {
     next(err);
@@ -83,18 +96,22 @@ app.put("/api/todos/:id", async (req, res, next) => {
 
 // DELETE Todo
 app.delete("/api/todos/:id", async (req, res, next) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
+
   try {
-    const success = await deleteTodo(parseInt(req.params.id));
+    const success = await deleteTodo(id);
     success ? res.status(204).end() : res.status(404).send("Nicht gefunden");
   } catch (err) {
     next(err);
   }
 });
 
-// Error handling
+// Zentrale Fehlerbehandlung
 app.use((err, req, res, next) => {
   logger.error("Fehler:", err.message);
-  res.status(500).json({ error: "Interner Serverfehler" });
+  const status = err.status || 500;
+  res.status(status).json({ error: err.message || "Interner Serverfehler" });
 });
 
 // Fallback

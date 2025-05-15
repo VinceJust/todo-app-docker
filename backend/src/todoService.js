@@ -1,4 +1,4 @@
-import pool from "./db.js"; // Note the .js extension
+import pool from "./db.js";
 import winston from "winston";
 
 // Todos aus der Datenbank abfragen
@@ -15,6 +15,12 @@ async function getTodoById(id) {
 
 // Neues Todo einfügen
 async function createTodo(text) {
+  if (!text || typeof text !== "string" || text.trim() === "") {
+    const error = new Error("Ungültiger Text für Todo.");
+    error.status = 400;
+    throw error;
+  }
+
   const result = await pool.query(
     "INSERT INTO todos (text, completed) VALUES ($1, false) RETURNING *",
     [text]
@@ -24,6 +30,12 @@ async function createTodo(text) {
 
 // Todo aktualisieren (z.B. completed toggeln)
 async function updateTodo(id, completed) {
+  if (typeof completed !== "boolean") {
+    const error = new Error("Feld 'completed' muss ein Boolean sein.");
+    error.status = 400;
+    throw error;
+  }
+
   const result = await pool.query(
     "UPDATE todos SET completed = $1 WHERE id = $2 RETURNING *",
     [completed, id]
