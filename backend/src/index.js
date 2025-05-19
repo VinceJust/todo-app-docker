@@ -24,8 +24,6 @@ const logger = winston.createLogger({
 });
 
 logger.info("Starting backend API...");
-
-// Log DB credentials
 logger.info("Database Configuration (from ENV):", {
   DB_HOST: process.env.DB_HOST || "[not set]",
   DB_PORT: process.env.DB_PORT || "[not set]",
@@ -37,7 +35,7 @@ logger.info("Database Configuration (from ENV):", {
 app.use(cors());
 app.use(express.json());
 
-// Healthcheck-Endpunkt mit DB-Test
+// Healthcheck-Endpunkt
 app.get("/health", async (req, res) => {
   try {
     await pool.query("SELECT 1");
@@ -48,7 +46,7 @@ app.get("/health", async (req, res) => {
   }
 });
 
-// GET all Todos
+// API-Routen
 app.get("/api/todos", async (req, res, next) => {
   try {
     const todos = await getAllTodos();
@@ -58,7 +56,6 @@ app.get("/api/todos", async (req, res, next) => {
   }
 });
 
-// GET Todo by ID
 app.get("/api/todos/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
@@ -71,7 +68,6 @@ app.get("/api/todos/:id", async (req, res, next) => {
   }
 });
 
-// POST new Todo
 app.post("/api/todos", async (req, res, next) => {
   const { text } = req.body;
   if (!text || typeof text !== "string" || text.trim() === "") {
@@ -86,8 +82,6 @@ app.post("/api/todos", async (req, res, next) => {
   }
 });
 
-
-// PUT update Todo
 app.put("/api/todos/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
   const { completed } = req.body;
@@ -105,8 +99,6 @@ app.put("/api/todos/:id", async (req, res, next) => {
   }
 });
 
-
-// DELETE Todo
 app.delete("/api/todos/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
@@ -131,6 +123,26 @@ app.use((req, res) => {
   res.status(404).send("Route nicht gefunden");
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  logger.info(`API läuft auf Port ${PORT}`);
+// Neue Funktion: Warten auf Datenbankverbindung
+async function waitForDatabase() {
+  const maxRetries = 10;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await pool.query("SELECT 1");
+      logger.info("Datenbankverbindung erfolgreich.");
+      return;
+    } catch (err) {
+      logger.warn(`Datenbank nicht erreichbar (Versuch ${i + 1}/${maxRetries})...`);
+      await new Promise(res => setTimeout(res, 3000));
+    }
+  }
+  logger.error("Fehler: DB nicht erreichbar nach mehreren Versuchen. Beende...");
+  process.exit(1);
+}
+
+// Starte App nur nach erfolgreicher DB-Verbindung
+waitForDatabase().then(() => {
+  app.listen(PORT, "0.0.0.0", () => {
+    logger.info(`API läuft auf Port ${PORT}`);
+  });
 });
