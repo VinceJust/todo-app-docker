@@ -1,0 +1,86 @@
+version: "3.8"
+
+services:
+  frontend:
+    image: vinjust/todo-frontend:swarm
+    deploy:
+      placement:
+        constraints:
+          - node.labels.role == frontend
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl", "-f", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - app-net
+
+  backend:
+    image: vinjust/todo-backend:swarm
+    deploy:
+      placement:
+        constraints:
+          - node.labels.role == backend
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+    environment:
+      - PORT=3000
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=tododb
+      - DB_USER=todo_user
+      - DB_PASSWORD=supersecure
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "curl", "-f", "http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    networks:
+      - app-net
+
+  database:
+    image: postgres:17-alpine
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.role == database
+    environment:
+      - POSTGRES_DB=tododb
+      - POSTGRES_USER=todo_user
+      - POSTGRES_PASSWORD=supersecure
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo_user -d tododb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app-net
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  app-net:
+    driver: overlay
