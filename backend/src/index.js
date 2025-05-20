@@ -1,24 +1,35 @@
 import express from "express";
 import cors from "cors";
 import winston from "winston";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import {
   getAllTodos,
   getTodoById,
   createTodo,
   updateTodo,
-  deleteTodo
+  deleteTodo,
 } from "./todoService.js";
 import pool from "./db.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Winston Logger Setup
 const logger = winston.createLogger({
   level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.simple()
+    winston.format.printf(({ timestamp, level, message, ...meta }) => {
+      return `${timestamp} [${level}]: ${message} ${
+        Object.keys(meta).length ? JSON.stringify(meta) : ""
+      }`;
+    })
   ),
   transports: [new winston.transports.Console()],
 });
@@ -35,13 +46,13 @@ logger.info("Database Configuration (from ENV):", {
 app.use(cors());
 app.use(express.json());
 
-// Healthcheck-Endpunkt
+// Healthcheck
 app.get("/health", async (req, res) => {
   try {
     await pool.query("SELECT 1");
     res.status(200).send("OK");
   } catch (err) {
-    logger.error("Healthcheck-Fehler: DB nicht erreichbar");
+    logger.error("Healthcheck-Fehler:", err);
     res.status(503).send("DB nicht erreichbar");
   }
 });
@@ -71,6 +82,7 @@ app.get("/api/todos/:id", async (req, res, next) => {
 app.post("/api/todos", async (req, res, next) => {
   const { text } = req.body;
   if (!text || typeof text !== "string" || text.trim() === "") {
+    logger.warn("Ungültiger Text empfangen:", { body: req.body });
     return res.status(400).json({ error: "Ungültiger oder fehlender Text" });
   }
 
@@ -78,6 +90,7 @@ app.post("/api/todos", async (req, res, next) => {
     const newTodo = await createTodo(text.trim());
     res.status(201).json(newTodo);
   } catch (err) {
+    logger.error("Fehler beim Erstellen eines Todos:", err);
     next(err);
   }
 });
@@ -88,7 +101,9 @@ app.put("/api/todos/:id", async (req, res, next) => {
 
   if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
   if (typeof completed !== "boolean") {
-    return res.status(400).json({ error: 'Feld "completed" muss ein Boolean sein' });
+    return res
+      .status(400)
+      .json({ error: 'Feld "completed" muss ein Boolean sein' });
   }
 
   try {
@@ -111,9 +126,12 @@ app.delete("/api/todos/:id", async (req, res, next) => {
   }
 });
 
-// Zentrale Fehlerbehandlung
+// Fehlerbehandlung
 app.use((err, req, res, next) => {
-  logger.error("Fehler:", err.message);
+  logger.error("Unerwarteter Fehler:", {
+    message: err.message,
+    stack: err.stack,
+  });
   const status = err.status || 500;
   res.status(status).json({ error: err.message || "Interner Serverfehler" });
 });
@@ -123,7 +141,7 @@ app.use((req, res) => {
   res.status(404).send("Route nicht gefunden");
 });
 
-// Neue Funktion: Warten auf Datenbankverbindung
+// Warten auf DB-Verbindung
 async function waitForDatabase() {
   const maxRetries = 10;
   for (let i = 0; i < maxRetries; i++) {
@@ -132,17 +150,36 @@ async function waitForDatabase() {
       logger.info("Datenbankverbindung erfolgreich.");
       return;
     } catch (err) {
-      logger.warn(`Datenbank nicht erreichbar (Versuch ${i + 1}/${maxRetries})...`);
-      await new Promise(res => setTimeout(res, 3000));
+      logger.warn(
+        `Datenbank nicht erreichbar (Versuch ${i + 1}/${maxRetries})...`
+      );
+      await new Promise((res) => setTimeout(res, 3000));
     }
   }
-  logger.error("Fehler: DB nicht erreichbar nach mehreren Versuchen. Beende...");
+  logger.error(
+    "Fehler: DB nicht erreichbar nach mehreren Versuchen. Beende..."
+  );
   process.exit(1);
 }
 
-// Starte App nur nach erfolgreicher DB-Verbindung
-waitForDatabase().then(() => {
-  app.listen(PORT, "0.0.0.0", () => {
-    logger.info(`API läuft auf Port ${PORT}`);
+// Initiales SQL-Schema ausführen
+async function runInitialSchema() {
+  try {
+    const schemaPath = path.join(__dirname, "..", "sql", "initial_schema.sql"); // <- Änderung: ".."
+    const schema = await fs.readFile(schemaPath, "utf-8");
+    await pool.query(schema);
+    logger.info("Initiales SQL-Schema erfolgreich ausgeführt.");
+  } catch (err) {
+    logger.error("Fehler beim Ausführen des Initialschemas:", err);
+    process.exit(1);
+  }
+}
+
+// Server starten nach erfolgreicher DB-Init
+waitForDatabase()
+  .then(runInitialSchema)
+  .then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      logger.info(`API läuft auf Port ${PORT}`);
+    });
   });
-});

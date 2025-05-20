@@ -1,20 +1,21 @@
 # Basis-Image
 FROM node:lts-alpine
 
+# Tools wie curl installieren
 RUN apk add --no-cache curl
-
 
 # Arbeitsverzeichnis im Container
 WORKDIR /app
 
-# package.json UND package-lock.json kopieren
+# package.json und package-lock.json kopieren
 COPY package*.json ./
 
-# Deterministische Installation (setzt Lockfile voraus)
+# Abhängigkeiten installieren (nur Production)
 RUN npm ci --omit=dev
 
 # Restlichen Code kopieren
-COPY . .
+COPY src ./src
+COPY sql ./sql
 
 # Port freigeben
 EXPOSE 3000

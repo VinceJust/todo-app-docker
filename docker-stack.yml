@@ -2,11 +2,11 @@ version: "3.8"
 
 services:
   frontend:
-    image: vinjust/todo-frontend:swarm
+    image: vinjust/todo-frontend:swarm-fixed
     deploy:
       placement:
         constraints:
-          - node.labels.role == frontend
+          - node.labels.role == worker1
       replicas: 1
       update_config:
         parallelism: 1
@@ -16,11 +16,11 @@ services:
     ports:
       - "8080:80"
     healthcheck:
-      test: ["CMD-SHELL", "curl", "-f", "http://localhost/"]
-      interval: 10s
+      test: ["CMD-SHELL", "curl -f http://localhost/"]
+      interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 30s
     networks:
       - app-net
 
@@ -29,7 +29,7 @@ services:
     deploy:
       placement:
         constraints:
-          - node.labels.role == backend
+          - node.labels.role == worker2
       replicas: 1
       update_config:
         parallelism: 1
@@ -43,25 +43,24 @@ services:
       - DB_NAME=tododb
       - DB_USER=todo_user
       - DB_PASSWORD=supersecure
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     healthcheck:
-      test:
-        ["CMD-SHELL", "curl", "-f", "http://localhost:3000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 15s
+      timeout: 7s
       retries: 5
-      start_period: 25s
+      start_period: 60s
     networks:
       - app-net
 
   database:
     image: postgres:17-alpine
     deploy:
-      replicas: 1
       placement:
         constraints:
-          - node.labels.role == database
+          - node.labels.role == worker3
+      replicas: 1
     environment:
       - POSTGRES_DB=tododb
       - POSTGRES_USER=todo_user
