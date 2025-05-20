@@ -1,6 +1,6 @@
-# Full-Stack Todo App (React + Node.js + Docker Compose)
+# Full-Stack Todo App (React + Node.js + Docker Swarm)
 
-Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend, einer Express-basierten Node.js-API und einer PostgreSQL-Datenbank. Die Anwendung erlaubt das Erstellen, Anzeigen, Bearbeiten und Löschen von To-do-Einträgen über eine REST-Schnittstelle. Die gesamte App wird über Docker Compose orchestriert und erfüllt die Voraussetzungen für den produktionsnahen Einsatz, inklusive Healthchecks und Persistenz.
+Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend (Vite), einer Express-basierten Node.js-API und einer PostgreSQL-Datenbank. Die App wird erfolgreich auf einem verteilten **Docker Swarm Cluster mit Node Affinity** betrieben.
 
 ## Projektstruktur
 
@@ -11,164 +11,87 @@ react-app-HA/
 │   ├── sql/               # initial_schema.sql
 │   ├── Dockerfile
 │   └── package.json
-├── frontend/               # React App (Vite + Nginx)
-│   └── Dockerfile
-├── docker-compose.yml     # Orchestriert alle drei Services
+├── frontend/              # React App (Vite + Nginx)
+│   ├── Dockerfile
+│   └── nginx.conf
+├── docker-stack.yml       # Swarm Stack Datei mit Platzierung & Healthchecks
 └── README.md
 ```
 
 ## Features
 
-* React-Frontend mit Vite
-* Express-API mit PostgreSQL-Datenbankanbindung
-* Alle vier CRUD-Operationen (Create, Read, Update, Delete)
-* Manuelles Datenbank-Schema via SQL-Datei
-* Persistente Volumes für die Datenbank
-* ENV-basierte DB-Konfiguration
-* Parametrisierte SQL-Abfragen (SQL Injection Schutz)
-* Healthchecks für Backend und Datenbank
-* Abhängigkeit auf gesunden DB-Zustand via `depends_on: condition: service_healthy`
-* Modularer Service Layer im Backend
-* Fehlerbehandlung und Logging via Winston
-* Reverse Proxy via Nginx
+* Frontend: React + Vite + Nginx Reverse Proxy
+* Backend: Express + PostgreSQL (über Pool)
+* Datenbank: Manuelles SQL-Schema mit `initial_schema.sql`
+* CRUD: Vollständige REST-API mit GET, POST, PUT, DELETE
+* Security: SQL-Injection-Schutz durch parametrisierte Queries
+* Healthchecks: Für Frontend, Backend & DB im Swarm-Kontext
+* Fehlerbehandlung & Logging mit Winston
+* Node Affinity: gezielte Platzierung auf Swarm-Nodes
 
-## Voraussetzungen
+## Swarm Deployment (Multipass Setup)
 
-* Docker (empfohlen: Docker Desktop)
-* Optional: `psql` CLI-Tool zur manuellen DB-Prüfung
+* 4 VMs via Multipass: `manager`, `worker1`, `worker2`, `worker3`
+* Swarm initiiert auf Manager: `docker swarm init`
+* Nodes joined & gelabelt:
 
-## Anwendung starten
+  * `worker1`: `role=worker1` (Frontend)
+  * `worker2`: `role=worker2` (Backend)
+  * `worker3`: `role=worker3` (DB)
 
-```bash
-docker-compose up --build -d
-```
+## Images auf Docker Hub
 
-Frontend erreichbar unter: [http://localhost:8080](http://localhost:8080)
-
-## Manuelles Schema-Management
-
-Die Datei `backend/sql/initial_schema.sql` definiert die `todos`-Tabelle und wird beim ersten Start durch den Einhängepunkt `/docker-entrypoint-initdb.d` ausgeführt.
-
-Beispiel:
-
-```sql
-CREATE TABLE IF NOT EXISTS todos (
-  id SERIAL PRIMARY KEY,
-  text VARCHAR(255) NOT NULL,
-  completed BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Persistenz testen (ohne Datenverlust)
+Damit Worker-VMs Images ziehen können:
 
 ```bash
-docker-compose stop
-docker-compose start
+docker build -t vinjust/todo-backend:swarm ./backend
+docker build -t vinjust/todo-frontend:swarm-fixed ./frontend
+docker push vinjust/todo-backend:swarm
+docker push vinjust/todo-frontend:swarm-fixed
 ```
 
-Danach erneut im Browser laden oder in die Datenbank schauen:
+## Stack-Deployment
 
 ```bash
-docker exec -it react-app-ha-database-1 bash
-psql -U todo_user -d tododb
-SELECT * FROM todos;
+scp docker-stack.yml ubuntu@manager:~/
+ssh ubuntu@manager
+# Auf Manager-VM:
+docker stack deploy -c docker-stack.yml mystack
 ```
 
-## Healthchecks
+## Swarm Healthchecks & Placement
 
-### Backend:
+`docker-stack.yml` nutzt:
 
-Healthcheck-Endpunkt: `http://localhost:3000/health`
+* Version 3.8
+* `deploy.placement.constraints:` für gezielte Node-Zuweisung
+* Healthchecks für alle Services
+* Overlay-Netzwerk für Service-Kommunikation
 
-Ergänzt im Code:
+## Nginx Proxy Konfiguration (frontend/nginx.conf)
 
-```js
-app.get("/health", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.status(200).send("OK");
-  } catch (err) {
-    res.status(503).send("DB nicht erreichbar");
+```nginx
+upstream backend {
+  server backend:3000;
+}
+
+server {
+  listen 80;
+
+  location / {
+    root /usr/share/nginx/html;
+    index index.html;
+    try_files $uri $uri/ /index.html;
   }
-});
-```
 
-Healthcheck-Konfiguration in `docker-compose.yml`:
-
-```yaml
-healthcheck:
-  test: ["CMD-SHELL", "curl -sf http://localhost:3000/health || exit 1"]
-  interval: 5s
-  timeout: 3s
-  retries: 3
-```
-
-### PostgreSQL:
-
-```yaml
-healthcheck:
-  test: ["CMD-SHELL", "pg_isready -U todo_user -d tododb"]
-  interval: 5s
-  timeout: 3s
-  retries: 5
-```
-
-### Dependency im Backend-Service:
-
-```yaml
-depends_on:
-  database:
-    condition: service_healthy
-```
-
-## Sicherheitsmaßnahmen
-
-* Alle SQL-Queries verwenden Platzhalter mit Werten:
-
-  ```js
-  pool.query('SELECT * FROM todos WHERE id = $1', [id]);
-  ```
-* Keine String-Konkatenation bei Abfragen
-* ENV-Logging ohne Klartextpasswort
-
-## Logging
-
-Backend loggt u.a.:
-
-```json
-info: Starting backend API...
-info: Database Configuration (from ENV): {
-  "DB_HOST": "database",
-  "DB_PORT": "5432",
-  "DB_USER": "todo_user",
-  "DB_NAME": "tododb",
-  "DB_PASSWORD": "[REDACTED]"
+  location /api/ {
+    proxy_pass http://backend;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Connection "";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
 }
 ```
-
-## Healthcheck Status
-
-```bash
-docker-compose ps
-```
-
-Beispielausgabe:
-
-```
-NAME                      IMAGE                   STATUS               
-react-app-ha-backend-1    react-app-ha-backend    Up (healthy)
-react-app-ha-database-1   postgres:17-alpine      Up (healthy)
-react-app-ha-frontend-1   react-app-ha-frontend   Up (healthy)
-```
-
-## CRUD-Benutzung im Browser
-
-Alle vier CRUD-Operationen können über die UI im Browser durchgeführt werden. Neue Todos lassen sich erstellen, löschen, bearbeiten und als erledigt markieren. Die Daten werden in der PostgreSQL-Datenbank persistent gespeichert.
-
-## Fehlerhandling & Stabilität
-
-* Das Backend gibt bei ungültiger ID `400 Bad Request` zurück.
-* Der Healthcheck meldet bei gestoppter Datenbank `503 Service Unavailable`.
-* Das Frontend zeigt im Fehlerfall (z. B. keine Verbindung) eine benutzerfreundliche Fehlermeldung.
-* Die Anwendung bleibt auch bei einem DB-Ausfall stabil und startet automatisch neu, sobald die DB wieder verfügbar ist.
