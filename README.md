@@ -2,6 +2,14 @@
 
 Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend, einer Express-basierten Node.js-API und einer PostgreSQL-Datenbank. Die Anwendung erlaubt das Erstellen, Anzeigen, Bearbeiten und Löschen von To-do-Einträgen über eine REST-Schnittstelle. Die gesamte App wird über Docker Compose orchestriert und erfüllt die Voraussetzungen für den produktionsnahen Einsatz, inklusive Healthchecks und Persistenz.
 
+## Kubernetes Einführung – Lokales Cluster
+
+Im Ordner [`kubernetes/`](kubernetes/) befindet sich die Abgabe zur Aufgabe **„Einführung in Kubernetes: Lokales Cluster aufsetzen & die Grundlagen überprüfen“**.
+
+- Die schriftlichen Reflexionsantworten stehen in [`k8s-intro-reflection.md`](kubernetes/k8s-intro-reflection.md).
+- Ein Screenshot (`k8s-cluster-proof.png`) zeigt, dass das lokale Kubernetes-Cluster erfolgreich läuft und `kubectl` korrekt verbunden ist.
+
+
 ## Projektstruktur
 
 ```
