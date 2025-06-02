@@ -3,18 +3,28 @@ frontend:
   image:
     repository: vinjust/frontend-image
     tag: latest
+    pullPolicy: IfNotPresent  # Für Docker Hub Images
   service:
+    type: ClusterIP
     port: 80
   env:
-    apiUrl: "/api"
+    apiUrl: "/api"  # Relativ ist gut für Frontend
 
 backend:
   replicaCount: 1
   image:
     repository: vinjust/backend-image
     tag: latest
+    pullPolicy: IfNotPresent  # Für Docker Hub Images
   service:
+    type: ClusterIP
     port: 3000
+  env:
+    DB_HOST: my-fullstack-app-database
+    DB_PORT: "5432"
+    DB_NAME: mydb
+    DB_USER: myuser
+    DB_PASSWORD: mypassword
 
 database:
   auth:
@@ -25,6 +35,23 @@ database:
     persistence:
       enabled: true
       size: 10Gi
+    initdb:
+      scripts:
+        init.sql: |
+          CREATE TABLE IF NOT EXISTS todos (
+              id SERIAL PRIMARY KEY,
+              text VARCHAR(255) NOT NULL,
+              completed BOOLEAN DEFAULT false,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          INSERT INTO todos (text, completed) VALUES
+              ('Learn Kubernetes', false),
+              ('Fix Ingress routing', true),
+              ('Deploy to production', false),
+              ('Test initdb scripts', false)
+          ON CONFLICT DO NOTHING;
+
 
 ingress:
   enabled: true
