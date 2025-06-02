@@ -159,7 +159,7 @@ echo "127.0.0.1 myapp.local" >> /etc/hosts
 
 #### 4. Frontend im Browser
 
-![Browser Ansicht](./screenshots/browser.png)
+<img src="./screenshots/browser.png" alt="Browser Ansicht" width="600">
 
 #### 5. API Requests im Network Tab
 
