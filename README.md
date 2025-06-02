@@ -226,10 +226,10 @@ database:
 
 #### 3. Sicheres Deployment
 
-```powershell
-# Windows PowerShell
-helm install my-fullstack-app . `
-  --set database.auth.password=<secret> `
+```bash
+# Mit mehreren --set Optionen
+helm install my-fullstack-app . \
+  --set database.auth.password=<secret> \
   --set backend.dbPassword=<secret>
 
 # Alternativ mit values-secret.yaml
