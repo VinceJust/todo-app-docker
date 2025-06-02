@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-react-node-app.fullname" . }}-backend
+  labels:
+    app: {{ include "my-react-node-app.name" . }}
+    component: backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "my-react-node-app.name" . }}
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: {{ include "my-react-node-app.name" . }}
+        component: backend
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DB_HOST
+              value: {{ printf "%s-database" .Release.Name }}
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: {{ .Values.database.auth.username | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-database" .Release.Name }}
+                  key: password
+            - name: DB_NAME
+              value: {{ .Values.database.auth.database | quote }}
+
+

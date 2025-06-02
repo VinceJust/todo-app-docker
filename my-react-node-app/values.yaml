@@ -1,0 +1,43 @@
+frontend:
+  replicaCount: 1
+  image:
+    repository: vinjust/frontend-image
+    tag: latest
+  service:
+    port: 80
+  env:
+    apiUrl: "/api"
+
+backend:
+  replicaCount: 1
+  image:
+    repository: vinjust/backend-image
+    tag: latest
+  service:
+    port: 3000
+
+database:
+  auth:
+    username: myuser
+    password: mypassword
+    database: mydb
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: myapp.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+config:
+  greetingMessage: "Hello from ConfigMap!"
+  logLevel: "info"
+  properties:
+    timeout: "30"
+    featureX: "true"

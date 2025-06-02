@@ -29,7 +29,9 @@ const pool = new Pool({
 
   // optional aber empfohlen:
   idleTimeoutMillis: 10000,           // Inaktive Verbindungen nach 10s schließen
-  connectionTimeoutMillis: 3000       // Verbindungsaufbau maximal 3s
+  connectionTimeoutMillis: 3000,       // Verbindungsaufbau maximal 3s
+
+  ssl: false
 });
 
 // === Logging beim Verbindungsstatus ===

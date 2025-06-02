@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "my-react-node-app.fullname" . }}-ingress
+  annotations:
+    # Rewrite-Target entfernt - das war das Problem!
+    # nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+  - host: {{ .host }}
+    http:
+      paths:
+      # Backend-API Route - MUSS vor der Frontend-Route stehen!
+      - path: /api(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ include "my-react-node-app.fullname" $ }}-backend
+            port:
+              number: {{ $.Values.backend.service.port }}
+      # Frontend Route für alles andere
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "my-react-node-app.fullname" $ }}-frontend
+            port:
+              number: {{ $.Values.frontend.service.port }}
+  {{- end }}
