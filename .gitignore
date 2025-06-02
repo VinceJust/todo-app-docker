@@ -11,3 +11,4 @@ node_modules/
 *.bak
 *.swp
 docker-compose.override.yml
+*-secret.yaml

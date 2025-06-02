@@ -1,182 +1,256 @@
-# Full-Stack Todo App (React + Node.js + Docker Compose)
+# Full-Stack Todo App – Helm Chart (React + Node.js + PostgreSQL)
 
-Dies ist eine containerisierte Full-Stack-Anwendung bestehend aus einem React-Frontend, einer Express-basierten Node.js-API und einer PostgreSQL-Datenbank. Die Anwendung erlaubt das Erstellen, Anzeigen, Bearbeiten und Löschen von To-do-Einträgen über eine REST-Schnittstelle. Die gesamte App wird über Docker Compose orchestriert und erfüllt die Voraussetzungen für den produktionsnahen Einsatz, inklusive Healthchecks und Persistenz.
+Dies ist eine Full-Stack-Anwendung bestehend aus einem React-Frontend, einem Express-Backend und einer PostgreSQL-Datenbank. Die Anwendung ist als Helm Chart paketiert und kann in einem Kubernetes-Cluster installiert, aktualisiert und deinstalliert werden.
 
-## Kubernetes Einführung – Lokales Cluster
-
-Im Ordner [`kubernetes/`](kubernetes/) befindet sich die Abgabe zur Aufgabe **„Einführung in Kubernetes: Lokales Cluster aufsetzen & die Grundlagen überprüfen“**.
-
-- Die schriftlichen Reflexionsantworten stehen in [`k8s-intro-reflection.md`](kubernetes/k8s-intro-reflection.md).
-- Ein Screenshot (`k8s-cluster-proof.png`) zeigt, dass das lokale Kubernetes-Cluster erfolgreich läuft und `kubectl` korrekt verbunden ist.
-
+Die Architektur demonstriert den Aufbau einer modularen Microservice-Anwendung mit Subchart-Integration, Datenbank-Persistenz, und Ingress-Routing.
 
 ## Projektstruktur
 
-```
-react-app-HA/
-├── backend/                # Node.js Express API
-│   ├── src/               # Service, DB-Modul, Routing
-│   ├── sql/               # initial_schema.sql
-│   ├── Dockerfile
-│   └── package.json
-├── frontend/               # React App (Vite + Nginx)
-│   └── Dockerfile
-├── docker-compose.yml     # Orchestriert alle drei Services
-└── README.md
+```text
+my-react-node-app/
+├── charts/
+│   └── postgresql-16.7.8.tgz    # PostgreSQL Subchart (Bitnami)
+├── templates/
+│   ├── backend-deployment.yaml  # Backend Deployment (Node.js API)
+│   ├── backend-service.yaml     # Backend Service
+│   ├── configmap.yaml          # Konfiguration (z.B. Logging, API URL)
+│   ├── frontend-deployment.yaml # Frontend Deployment (React)
+│   ├── frontend-service.yaml    # Frontend Service
+│   ├── ingress.yaml            # Ingress-Routing (myapp.local)
+│   └── _helpers.tpl            # Helper-Templates
+├── values.yaml                  # Konfiguration aller Komponenten
+├── Chart.yaml                   # Chart-Metadaten & Subchart-Dependency
+├── .helmignore
+└── README.md                    # Diese Datei
 ```
 
 ## Features
 
-* React-Frontend mit Vite
-* Express-API mit PostgreSQL-Datenbankanbindung
-* Alle vier CRUD-Operationen (Create, Read, Update, Delete)
-* Manuelles Datenbank-Schema via SQL-Datei
-* Persistente Volumes für die Datenbank
-* ENV-basierte DB-Konfiguration
-* Parametrisierte SQL-Abfragen (SQL Injection Schutz)
-* Healthchecks für Backend und Datenbank
-* Abhängigkeit auf gesunden DB-Zustand via `depends_on: condition: service_healthy`
-* Modularer Service Layer im Backend
-* Fehlerbehandlung und Logging via Winston
-* Reverse Proxy via Nginx
+- **Frontend**: React + Vite + Nginx
+- **Backend**: Node.js (Express) mit REST-API
+- **PostgreSQL Subchart**: Integriert via Bitnami
+- **Datenbank-Init**: init.sql über initdb.scripts
+- **Ingress**: myapp.local als Hostname
+- **Konfiguration**: Vollständig über values.yaml steuerbar
+- **CRUD-API**: Todos erstellen, lesen, updaten, löschen
+- **Healthchecks & Logging**: API-Healthcheck, Winston-Logger
+- **Best Practices**: Templating, Subchart-Alias, ENV-Variablen
 
-## Voraussetzungen
+## Helm Befehle
 
-* Docker (empfohlen: Docker Desktop)
-* Optional: `psql` CLI-Tool zur manuellen DB-Prüfung
-
-## Anwendung starten
+### Installation
 
 ```bash
-docker-compose up --build -d
+# PostgreSQL Subchart herunterladen
+helm dependency update
+
+# Chart installieren
+helm install my-fullstack-app .
 ```
 
-Frontend erreichbar unter: [http://localhost:8080](http://localhost:8080)
-
-## Manuelles Schema-Management
-
-Die Datei `backend/sql/initial_schema.sql` definiert die `todos`-Tabelle und wird beim ersten Start durch den Einhängepunkt `/docker-entrypoint-initdb.d` ausgeführt.
-
-Beispiel:
-
-```sql
-CREATE TABLE IF NOT EXISTS todos (
-  id SERIAL PRIMARY KEY,
-  text VARCHAR(255) NOT NULL,
-  completed BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Persistenz testen (ohne Datenverlust)
+### Upgrade
 
 ```bash
-docker-compose stop
-docker-compose start
+helm upgrade my-fullstack-app .
 ```
 
-Danach erneut im Browser laden oder in die Datenbank schauen:
+### Deinstallation
 
 ```bash
-docker exec -it react-app-ha-database-1 bash
-psql -U todo_user -d tododb
-SELECT * FROM todos;
+helm uninstall my-fullstack-app
 ```
 
-## Healthchecks
+## Konfiguration
 
-### Backend:
-
-Healthcheck-Endpunkt: `http://localhost:3000/health`
-
-Ergänzt im Code:
-
-```js
-app.get("/health", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.status(200).send("OK");
-  } catch (err) {
-    res.status(503).send("DB nicht erreichbar");
-  }
-});
-```
-
-Healthcheck-Konfiguration in `docker-compose.yml`:
+### values.yaml Highlights
 
 ```yaml
-healthcheck:
-  test: ["CMD-SHELL", "curl -sf http://localhost:3000/health || exit 1"]
-  interval: 5s
-  timeout: 3s
-  retries: 3
+frontend:
+  replicaCount: 1
+  image:
+    repository: vinjust/frontend-image
+    tag: latest
+  service:
+    port: 80
+  env:
+    apiUrl: "/api"
+
+backend:
+  replicaCount: 1
+  image:
+    repository: vinjust/backend-image
+    tag: latest
+  service:
+    port: 3000
+  env:
+    DB_HOST: my-fullstack-app-database
+    DB_PORT: "5432"
+    DB_NAME: mydb
+    DB_USER: myuser
+    DB_PASSWORD: mypassword #dummy password
+
+database:
+  auth:
+    username: myuser
+    password: mypassword #dummy password
+    database: mydb
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    initdb:
+      scripts:
+        init.sql: |
+          CREATE TABLE IF NOT EXISTS todos (
+              id SERIAL PRIMARY KEY,
+              title VARCHAR(255) NOT NULL,
+              completed BOOLEAN DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT NOW()
+          );
+          INSERT INTO todos (title, completed) VALUES
+              ('Learn Kubernetes', false),
+              ('Fix Ingress routing', true),
+              ('Deploy to production', false),
+              ('Test initdb scripts', false)
+          ON CONFLICT DO NOTHING;
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: myapp.local
 ```
 
-### PostgreSQL:
+## Sicherheit
 
-```yaml
-healthcheck:
-  test: ["CMD-SHELL", "pg_isready -U todo_user -d tododb"]
-  interval: 5s
-  timeout: 3s
-  retries: 5
-```
+### Sensible Daten
 
-### Dependency im Backend-Service:
+- **Lokale Tests**: Temporäre Passwörter (z. B. mypassword) können in values.yaml stehen, sind aber nur als Platzhalter/Dummy gedacht.
+- **Deployment**: Passwörter sollten über --set (z. B. --set database.auth.password=...) oder eine separate, nicht eingecheckte Datei wie values-secret.yaml übergeben werden.
+- **Alternative**: Passwörter sollten über --set (z. B. --set database.auth.password=...) oder eine separate, nicht eingecheckte Datei wie values-secret.yaml übergeben werden.
 
-```yaml
-depends_on:
-  database:
-    condition: service_healthy
-```
+## Installation & Zugriff
 
-## Sicherheitsmaßnahmen
-
-* Alle SQL-Queries verwenden Platzhalter mit Werten:
-
-  ```js
-  pool.query('SELECT * FROM todos WHERE id = $1', [id]);
-  ```
-* Keine String-Konkatenation bei Abfragen
-* ENV-Logging ohne Klartextpasswort
-
-## Logging
-
-Backend loggt u.a.:
-
-```json
-info: Starting backend API...
-info: Database Configuration (from ENV): {
-  "DB_HOST": "database",
-  "DB_PORT": "5432",
-  "DB_USER": "todo_user",
-  "DB_NAME": "tododb",
-  "DB_PASSWORD": "[REDACTED]"
-}
-```
-
-## Healthcheck Status
+1. Hosts-Datei anpassen:
 
 ```bash
-docker-compose ps
+echo "127.0.0.1 myapp.local" >> /etc/hosts
 ```
 
-Beispielausgabe:
+2. Im Browser aufrufen:
 
+- [http://myapp.local](http://myapp.local)
+
+## Validierung
+
+### Nachweise (Screenshots)
+
+#### 1. Helm Release Status
+
+![Helm Release Liste](./screenshots/helm-list.png)
+
+#### 2. Kubernetes Objekte
+
+![Kubernetes Objekte](./screenshots/kubectl-get-all.png)
+
+#### 3. Persistent Volume Claims
+
+![Kubernetes PVCs](./screenshots/kubectl-get-pvc.png)
+
+#### 4. Frontend im Browser
+
+![Browser Ansicht](./screenshots/browser.png)
+
+#### 5. API Requests im Network Tab
+
+![API Requests](./screenshots/APIrequests.png)
+
+#### 6. Backend Logs
+
+![Backend Logs](./screenshots/backend-log.png)
+
+#### 7. API Test mit curl
+
+![API curl Test](./screenshots/API-curl.png)
+
+
+## Best Practices
+
+### Values.yaml Struktur
+
+#### Was gehört in values.yaml
+
+- **Deployment-Konfiguration**
+  - `replicaCount`: Anzahl der Replikate
+  - `image.repository` und `image.tag`: Docker Image Details
+  - `service.port`: Exponierte Service Ports
+  - `ingress.enabled`: Feature Flags
+- **Anwendungskonfiguration**
+  - Umgebungsvariablen
+  - API-Endpunkte
+  - Feature Flags
+  - Logging Level
+
+#### Was gehört NICHT in values.yaml
+
+- Kubernetes Basis-Struktur (apiVersion, kind)
+- Standard Container Ports (80/443)
+- Unveränderliche Pfade (/app, /data)
+- Basis-Labels und Selektoren
+
+### PostgreSQL Subchart Integration
+
+#### 1. Chart.yaml Konfiguration
+
+```yaml
+dependencies:
+  - name: postgresql
+    version: "16.7.8"
+    repository: "https://charts.bitnami.com/bitnami"
+    alias: database
 ```
-NAME                      IMAGE                   STATUS               
-react-app-ha-backend-1    react-app-ha-backend    Up (healthy)
-react-app-ha-database-1   postgres:17-alpine      Up (healthy)
-react-app-ha-frontend-1   react-app-ha-frontend   Up (healthy)
+
+#### 2. Sichere Subchart-Konfiguration
+
+```yaml
+database:
+  auth:
+    username: myuser
+    # password wird via --set übergeben!
+    database: mydb
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
 ```
 
-## CRUD-Benutzung im Browser
+#### 3. Sicheres Deployment
 
-Alle vier CRUD-Operationen können über die UI im Browser durchgeführt werden. Neue Todos lassen sich erstellen, löschen, bearbeiten und als erledigt markieren. Die Daten werden in der PostgreSQL-Datenbank persistent gespeichert.
+```powershell
+# Windows PowerShell
+helm install my-fullstack-app . `
+  --set database.auth.password=<secret> `
+  --set backend.dbPassword=<secret>
 
-## Fehlerhandling & Stabilität
+# Alternativ mit values-secret.yaml
+helm install my-fullstack-app . -f values-secret.yaml
+```
 
-* Das Backend gibt bei ungültiger ID `400 Bad Request` zurück.
-* Der Healthcheck meldet bei gestoppter Datenbank `503 Service Unavailable`.
-* Das Frontend zeigt im Fehlerfall (z. B. keine Verbindung) eine benutzerfreundliche Fehlermeldung.
-* Die Anwendung bleibt auch bei einem DB-Ausfall stabil und startet automatisch neu, sobald die DB wieder verfügbar ist.
+### Secret Management Best Practices
+
+1. **Entwicklung & Tests**
+
+   - Temporäre Passwörter in lokaler `values-dev.yaml`
+   - Nicht ins Git Repository committen
+   - `.gitignore` für `*-secret.yaml` Dateien
+
+2. **Staging & Produktion**
+
+   - Secrets via External Secrets Operator
+   - HashiCorp Vault Integration
+   - Sealed Secrets für GitOps
+
+3. **CI/CD Pipeline**
+   - Secrets aus Key Vault/Secret Manager
+   - Injection via Helm `--set` oder `-f`
+   - Separate Secret Management für verschiedene Umgebungen
