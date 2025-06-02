@@ -147,15 +147,15 @@ echo "127.0.0.1 myapp.local" >> /etc/hosts
 
 #### 1. Helm Release Status
 
-![Helm Release Liste](./screenshots/helm-list.png)
+<img src="./screenshots/helm-list.png" alt="Helm Release Liste" width="700">
 
 #### 2. Kubernetes Objekte
 
-![Kubernetes Objekte](./screenshots/kubectl-get-all.png)
+<img src="./screenshots/kubectl-get-all.png" alt="Kubernetes Objekte" width="700">
 
 #### 3. Persistent Volume Claims
 
-![Kubernetes PVCs](./screenshots/kubectl-get-pvc.png)
+<img src="./screenshots/kubectl-get-pvc.png" alt="Kubernetes PVCs" width="700">
 
 #### 4. Frontend im Browser
 
@@ -167,11 +167,11 @@ echo "127.0.0.1 myapp.local" >> /etc/hosts
 
 #### 6. Backend Logs
 
-![Backend Logs](./screenshots/backend-log.png)
+<img src="./screenshots/backend-log.png" alt="Backend Logs" width="700">
 
 #### 7. API Test mit curl
 
-![API curl Test](./screenshots/API-curl.png)
+<img src="./screenshots/API-curl.png" alt="API curl Test" width="700">
 
 
 ## Best Practices
