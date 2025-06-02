@@ -163,7 +163,7 @@ echo "127.0.0.1 myapp.local" >> /etc/hosts
 
 #### 5. API Requests im Network Tab
 
-![API Requests](./screenshots/APIrequests.png)
+<img src="./screenshots/APIrequests.png" alt="API Requests" width="600">
 
 #### 6. Backend Logs
 
