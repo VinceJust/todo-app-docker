@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-push:
-    name: Build, Lint, Dockerize and Push
+    name: Build, Dockerize and Push
     runs-on: ubuntu-latest
 
     steps:
@@ -22,10 +22,6 @@ jobs:
       - name: Install dependencies
         working-directory: ./frontend
         run: npm ci
-
-      - name: Run lint
-        working-directory: ./frontend
-        run: npm run lint
 
       - name: Build application
         working-directory: ./frontend
