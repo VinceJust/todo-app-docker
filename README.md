@@ -188,23 +188,6 @@ echo "127.0.0.1 myapp.local" >> /etc/hosts
 
 * [http://myapp.local](http://myapp.local)
 
-## Validierung
-
-### Nachweise (Screenshots)
-
-#### 1. Helm Release Status
-
-#### 2. Kubernetes Objekte
-
-#### 3. Persistent Volume Claims
-
-#### 4. Frontend im Browser
-
-#### 5. API Requests im Network Tab
-
-#### 6. Backend Logs
-
-#### 7. API Test mit curl
 
 ## Best Practices
 
